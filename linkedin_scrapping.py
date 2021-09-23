@@ -1,11 +1,14 @@
 from selenium import webdriver
-import bs4 as bs
+from bs4 import BeautifulSoup
+import pandas as pd
 from selenium.webdriver.common.keys import Keys
 import time
 import os
 import traceback
 from selenium.common.exceptions import NoSuchElementException
-
+l1=[]
+l2=[]
+l3=[]
 chrome_options=webdriver.ChromeOptions()
 chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
 chrome_options.add_argument("disable-dev-shm-usage")
@@ -34,7 +37,7 @@ try:
     browser.get('https://www.linkedin.com/jobs/?showJobAlertsModal=false')
     jobID = browser.find_element_by_class_name('jobs-search-box__text-input')
     jobID.send_keys(job)
-    time.sleep(5)
+    time.sleep(10)
     browser.find_element_by_xpath("/html/body/div[6]/header/div/div/div/div[2]/button[1]").click()
     time.sleep(5)
     # src = browser.page_source
@@ -50,40 +53,62 @@ try:
     company_Name=[]
     page=2
     count=0
+    def scroll_to(job_list_item):
+        browser.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+        #job_list_item.click()
+        #time.sleep(10)
+
+
+
+    def get_data(job):
+        [position,company,loacation]=job.text.split("\n")[:3]
+        return [position,company,loacation]
+
     while True:
         try:
             cname=1
-            while cname<=8:
-            	p=1
-            	try:
-            		#job_details=browser.find_element_by_xpath("")
-            		while True:
-            			try:
-            				job=browser.find_elements_by_xpath("/html/body/div[6]/div[3]/div[3]/div[2]/div/section[1]/div/div/ul/li[{0}]/div/div/div/div[2]/div[1]/a".format(cname))
-            				comp=browser.find_elements_by_xpath("/html/body/div[6]/div[3]/div[3]/div[2]/div/section[1]/div/div/ul/li[{0}]/div/div/div/div[2]/div[2]/a".format(cname))
-            				loc=browser.find_elements_by_xpath("/html/body/div[6]/div[3]/div[3]/div[2]/div/section[1]/div/div/ul/li[{0}]/div/div/div/div[2]/div[3]/ul".format(cname))
-            				company_Name.append(job[0].text)
-            				print(job[0].text)
-            				print(comp[0].text)
-            				print(loc[0].text)
-            				count+=1
-            				break
-            			except Exception as e:
-            				break
-            			p=p+1
-            	except Exception as e:
-            		break
-            		print("all have not printed")
+            while cname<=24:
+                p=1
+                try:
+                    #job_details=browser.find_element_by_xpath("")
+                    jobs=browser.find_elements_by_xpath("/html/body/div[6]/div[3]/div[3]/div[2]/div/section[1]/div/div/ul/li[{0}]/div/div/div[1]/div[2]".format(cname))
+                    scroll_to(jobs)
+                    for job in jobs:
+                        l=get_data(job)
+                        l1.append(l[0])
+                        l2.append(l[1])
+                        l3.append(l[2])
+                        print(get_data(job))
+                    count+=1
+                except Exception as e:
+                    break
+                    print("all have not printed")
 
-            	cname=cname+1
+                cname=cname+1
+            time.sleep(5)
             browser.find_element_by_xpath("/html/body/div[6]/div[3]/div[3]/div[2]/div/section[1]/div/div/section/div/ul/li[{0}]/button".format(page)).click()
             time.sleep(6)
             page+=1
         except Exception as e:
             print("jobs are over")
             print(count)
+            print(page)
             break
 
 except:
-	traceback.print_exc()
-	print("Page not found")
+    traceback.print_exc()
+    print("Page not found")
+    job_src = browser.page_source
+    soup = BeautifulSoup(job_src, 'lxml')  
+    jobs_html = soup.find_all('a', {'class': 'job-card-list__title'})
+# In case of an error, try changing the XPath.
+
+    job_titles = []
+
+    for title in jobs_html:
+        job_titles.append(title.text.strip())
+
+print(job_titles)
+
+data=pd.DataFrame({"position":l1,"company_Name":l2,"loacation":l3})
+data.to_csv('linkedin.csv',index=True)
